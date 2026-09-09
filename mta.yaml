@@ -1,0 +1,98 @@
+_schema-version: "3.2"
+ID: solar-time-plugin
+version: 1.0.0
+description: Solar shell plugin showing current time and time zone on login
+
+parameters:
+  enable-parallel-deployments: true
+
+build-parameters:
+  before-all:
+    - builder: custom
+      commands:
+        - npm install
+
+modules:
+  - name: solar-time-plugin-content
+    type: com.sap.application.content
+    path: .
+    requires:
+      - name: solar-time-plugin-repo-host
+        parameters:
+          content-target: true
+    build-parameters:
+      build-result: resources
+      requires:
+        - artifacts:
+            - comsolartimeplugin.zip
+          name: comsolartimeplugin
+          target-path: resources/
+
+  - name: comsolartimeplugin
+    type: html5
+    path: .
+    build-parameters:
+      build-result: dist
+      builder: custom
+      commands:
+        - npm install
+        - npm run build
+      supported-platforms: []
+
+  # Destinations that let SAP Build Work Zone (managed approuter) discover
+  # the plugin in the HTML5 repo; sap.cloud.service must match manifest.json
+  - name: solar-time-plugin-destination-content
+    type: com.sap.application.content
+    requires:
+      - name: solar-time-plugin-destination
+        parameters:
+          content-target: true
+      - name: solar-time-plugin-repo-host
+        parameters:
+          service-key:
+            name: solar-time-plugin-repo-host-key
+      - name: solar-time-plugin-uaa
+        parameters:
+          service-key:
+            name: solar-time-plugin-uaa-key
+    parameters:
+      content:
+        instance:
+          existing_destinations_policy: update
+          destinations:
+            - Name: solar-time-plugin-html5-repository
+              ServiceInstanceName: solar-time-plugin-repo-host
+              ServiceKeyName: solar-time-plugin-repo-host-key
+              sap.cloud.service: com.solar.timeplugin.service
+            - Name: solar-time-plugin-uaa
+              Authentication: OAuth2UserTokenExchange
+              ServiceInstanceName: solar-time-plugin-uaa
+              ServiceKeyName: solar-time-plugin-uaa-key
+              sap.cloud.service: com.solar.timeplugin.service
+    build-parameters:
+      no-source: true
+
+resources:
+  - name: solar-time-plugin-repo-host
+    type: org.cloudfoundry.managed-service
+    parameters:
+      service: html5-apps-repo
+      service-plan: app-host
+      service-keys:
+        - name: solar-time-plugin-repo-host-key
+
+  - name: solar-time-plugin-uaa
+    type: org.cloudfoundry.managed-service
+    parameters:
+      service: xsuaa
+      service-plan: application
+      path: ./xs-security.json
+
+  - name: solar-time-plugin-destination
+    type: org.cloudfoundry.managed-service
+    parameters:
+      service: destination
+      service-plan: lite
+      config:
+        HTML5Runtime_enabled: true
+        version: 1.0.0
