@@ -1,0 +1,53 @@
+{
+  "_version": "1.58.0",
+  "sap.app": {
+    "id": "com.solar.timeplugin",
+    "type": "component",
+    "title": "Time Popup Plugin",
+    "description": "Shell plugin that shows current time and time zone after login",
+    "applicationVersion": {
+      "version": "1.0.0"
+    },
+    "crossNavigation": {
+      "inbounds": {
+        "Shell-plugin": {
+          "semanticObject": "Shell",
+          "action": "plugin",
+          "title": "Time Popup Plugin",
+          "signature": {
+            "parameters": {},
+            "additionalParameters": "allowed"
+          }
+        }
+      }
+    }
+  },
+  "sap.ui": {
+    "technology": "UI5",
+    "deviceTypes": {
+      "desktop": true,
+      "tablet": true,
+      "phone": true
+    }
+  },
+  "sap.ui5": {
+    "dependencies": {
+      "minUI5Version": "1.120.0",
+      "libs": {
+        "sap.ui.core": {},
+        "sap.m": {}
+      }
+    },
+    "contentDensities": {
+      "compact": true,
+      "cozy": true
+    }
+  },
+  "sap.flp": {
+    "type": "plugin"
+  },
+  "sap.cloud": {
+    "public": true,
+    "service": "com.solar.timeplugin.service"
+  }
+}

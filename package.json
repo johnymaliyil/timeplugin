@@ -1,0 +1,14 @@
+{
+  "name": "solar-time-plugin",
+  "version": "1.0.0",
+  "description": "Solar shell plugin showing current time and time zone on login",
+  "private": true,
+  "scripts": {
+    "start": "ui5 serve --open test/flpSandbox.html",
+    "build": "ui5 build preload --clean-dest --config ui5-deploy.yaml --include-task=generateManifestBundle"
+  },
+  "devDependencies": {
+    "@ui5/cli": "^3.9.2",
+    "ui5-task-zipper": "^3.1.3"
+  }
+}
