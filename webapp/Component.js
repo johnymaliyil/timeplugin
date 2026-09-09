@@ -1,8 +1,15 @@
 sap.ui.define([
     "sap/ui/core/Component",
-    "sap/m/MessageBox"
-], function (Component, MessageBox) {
+    "sap/m/Dialog",
+    "sap/m/Input",
+    "sap/m/Label",
+    "sap/m/Text",
+    "sap/m/Button",
+    "sap/m/VBox"
+], function (Component, Dialog, Input, Label, Text, Button, VBox) {
     "use strict";
+
+    var STORAGE_KEY = "solarTimePlugin.pcName";
 
     return Component.extend("com.solar.timeplugin.Component", {
 
@@ -15,40 +22,51 @@ sap.ui.define([
             var sTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
             var iOffsetHours = -oNow.getTimezoneOffset() / 60;
             var sOffset = "UTC" + (iOffsetHours >= 0 ? "+" : "") + iOffsetHours;
-            var sPCName = this._getPCName();
 
-            var oUrl = new URL(window.location.href);
-            oUrl.searchParams.set("sTimeZone", oNow.toLocaleTimeString() + " " + sTimeZone + " (" + sOffset + ")");
-            oUrl.searchParams.set("ZCLIENTNAME", sPCName);
-            window.history.replaceState(null, "", oUrl.toString());
-
-            MessageBox.information(
-                "Current time: " + oNow.toLocaleTimeString() + "\n" +
-                "Date: " + oNow.toLocaleDateString() + "\n" +
-                "Time zone: " + sTimeZone + " (" + sOffset + ")" + "\n" +
-                "PC name: " + sPCName,
-                {
-                    title: "Welcome to Build Work Zone"
-                }
-            );
+            this._showInfoDialog(oNow, sTimeZone, sOffset);
         },
 
-        // Browsers cannot read the OS hostname (%COMPUTERNAME%) directly;
-        // ask once and remember the answer in this browser profile.
-        _getPCName: function () {
-            var STORAGE_KEY = "solarTimePlugin.pcName";
-            var sPCName = window.localStorage.getItem(STORAGE_KEY);
+        // Single popup: basic info as of this login, plus an editable PC name
+        // field (pre-filled from localStorage, since browsers can't read the
+        // OS hostname directly).
+        _showInfoDialog: function (oNow, sTimeZone, sOffset) {
+            var oInput = new Input({
+                value: window.localStorage.getItem(STORAGE_KEY) || "",
+                placeholder: "Enter your PC name"
+            });
 
-            if (!sPCName) {
-                sPCName = window.prompt(
-                    "Enter your PC name (run 'hostname' in Command Prompt to find it):",
-                    ""
-                );
-                sPCName = (sPCName || "").trim() || "Unknown";
-                window.localStorage.setItem(STORAGE_KEY, sPCName);
-            }
+            var oDialog = new Dialog({
+                title: "Welcome to Build Work Zone",
+                content: new VBox({
+                    items: [
+                        new Text({ text: "Current time: " + oNow.toLocaleTimeString() }),
+                        new Text({ text: "Date: " + oNow.toLocaleDateString() }),
+                        new Text({ text: "Time zone: " + sTimeZone + " (" + sOffset + ")" }),
+                        new Label({ text: "PC name", labelFor: oInput }).addStyleClass("sapUiTinyMarginTop"),
+                        oInput
+                    ]
+                }).addStyleClass("sapUiSmallMargin"),
+                beginButton: new Button({
+                    text: "OK",
+                    type: "Emphasized",
+                    press: function () {
+                        var sPCName = (oInput.getValue() || "").trim() || "Unknown";
+                        window.localStorage.setItem(STORAGE_KEY, sPCName);
 
-            return sPCName;
+                        var oUrl = new URL(window.location.href);
+                        oUrl.searchParams.set("sTimeZone", oNow.toLocaleTimeString() + " " + sTimeZone + " (" + sOffset + ")");
+                        oUrl.searchParams.set("ZCLIENTNAME", sPCName);
+                        window.history.replaceState(null, "", oUrl.toString());
+
+                        oDialog.close();
+                    }
+                }),
+                afterClose: function () {
+                    oDialog.destroy();
+                }
+            });
+
+            oDialog.open();
         }
     });
 });
