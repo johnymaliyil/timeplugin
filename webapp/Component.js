@@ -19,7 +19,7 @@ sap.ui.define([
 
             var oUrl = new URL(window.location.href);
             oUrl.searchParams.set("sTimeZone", oNow.toLocaleTimeString() + " " + sTimeZone + " (" + sOffset + ")");
-            oUrl.searchParams.set("sPCName", sPCName);
+            oUrl.searchParams.set("ZCLIENTNAME", sPCName);
             window.history.replaceState(null, "", oUrl.toString());
 
             MessageBox.information(
