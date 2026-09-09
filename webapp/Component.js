@@ -31,7 +31,7 @@ sap.ui.define([
         // OS hostname directly).
         _showInfoDialog: function (oNow, sTimeZone, sOffset) {
             var oInput = new Input({
-                value: window.localStorage.getItem(STORAGE_KEY) || "",
+                value: window.localStorage.getItem(STORAGE_KEY) || "DKLT000XXXXX",
                 placeholder: "Enter your PC name"
             });
 
