@@ -1,12 +1,13 @@
 sap.ui.define([
-    "sap/ui/core/Component",
-    "sap/m/Dialog",
-    "sap/m/Input",
-    "sap/m/Label",
-    "sap/m/Text",
-    "sap/m/Button",
-    "sap/m/VBox"
-], function (Component, Dialog, Input, Label, Text, Button, VBox) {
+    "sap/ui/core/Component"
+    // Popup UI disabled - dependencies commented out for easy restore.
+    // "sap/m/Dialog",
+    // "sap/m/Input",
+    // "sap/m/Label",
+    // "sap/m/Text",
+    // "sap/m/Button",
+    // "sap/m/VBox"
+], function (Component /*, Dialog, Input, Label, Text, Button, VBox */) {
     "use strict";
 
     var STORAGE_KEY = "solarTimePlugin.pcName";
@@ -18,17 +19,34 @@ sap.ui.define([
         },
 
         init: function () {
-            var oNow = new Date();
-            var sTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-            var iOffsetHours = -oNow.getTimezoneOffset() / 60;
-            var sOffset = "UTC" + (iOffsetHours >= 0 ? "+" : "") + iOffsetHours;
+            // No popup: silently read the cached PC name (or default) and
+            // move it onto the URL hash (after #), no user interaction.
+            var sPCName = window.localStorage.getItem(STORAGE_KEY) || "DKLT000XXXXX";
 
-            this._showInfoDialog(oNow, sTimeZone, sOffset);
-        },
+            var sHash = window.location.hash || "#";
+            var iQIndex = sHash.indexOf("?");
+            var sHashPath = iQIndex >= 0 ? sHash.substring(0, iQIndex) : sHash;
+            var oHashParams = new URLSearchParams(iQIndex >= 0 ? sHash.substring(iQIndex + 1) : "");
 
-        // Single popup: basic info as of this login, plus an editable PC name
-        // field (pre-filled from localStorage, since browsers can't read the
-        // OS hostname directly).
+            oHashParams.set("clientname", sPCName);
+
+            var sNewUrl = window.location.pathname + window.location.search + sHashPath + "?" + oHashParams.toString();
+            window.history.replaceState(null, "", sNewUrl);
+
+            // this._showInfoDialog(oNow, sTimeZone, sOffset);
+        }
+
+        // Popup showing basic info (time/date/timezone) plus an editable PC
+        // name field. Disabled per request (no popup wanted) - kept here,
+        // commented, so it can be restored by:
+        //   1. uncommenting the sap/m/* dependencies above and the function
+        //      params (Dialog, Input, Label, Text, Button, VBox)
+        //   2. uncommenting this method
+        //   3. in init(), computing oNow/sTimeZone/sOffset again and calling
+        //      this._showInfoDialog(oNow, sTimeZone, sOffset) instead of the
+        //      inline clientname-only logic
+        /*
+        ,
         _showInfoDialog: function (oNow, sTimeZone, sOffset) {
             var oInput = new Input({
                 value: window.localStorage.getItem(STORAGE_KEY) || "DKLT000XXXXX",
@@ -53,9 +71,6 @@ sap.ui.define([
                         var sPCName = (oInput.getValue() || "").trim() || "Unknown";
                         window.localStorage.setItem(STORAGE_KEY, sPCName);
 
-                        // Set params on the hash (after #) rather than the query
-                        // string (before #), so they ride along with the FLP
-                        // shell's own intent navigation instead of the page URL.
                         var sHash = window.location.hash || "#";
                         var iQIndex = sHash.indexOf("?");
                         var sHashPath = iQIndex >= 0 ? sHash.substring(0, iQIndex) : sHash;
@@ -77,5 +92,6 @@ sap.ui.define([
 
             oDialog.open();
         }
+        */
     });
 });
