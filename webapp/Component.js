@@ -53,10 +53,19 @@ sap.ui.define([
                         var sPCName = (oInput.getValue() || "").trim() || "Unknown";
                         window.localStorage.setItem(STORAGE_KEY, sPCName);
 
-                        var oUrl = new URL(window.location.href);
-                        oUrl.searchParams.set("sTimeZone", oNow.toLocaleTimeString() + " " + sTimeZone + " (" + sOffset + ")");
-                        oUrl.searchParams.set("ZCLIENTNAME", sPCName);
-                        window.history.replaceState(null, "", oUrl.toString());
+                        // Set params on the hash (after #) rather than the query
+                        // string (before #), so they ride along with the FLP
+                        // shell's own intent navigation instead of the page URL.
+                        var sHash = window.location.hash || "#";
+                        var iQIndex = sHash.indexOf("?");
+                        var sHashPath = iQIndex >= 0 ? sHash.substring(0, iQIndex) : sHash;
+                        var oHashParams = new URLSearchParams(iQIndex >= 0 ? sHash.substring(iQIndex + 1) : "");
+
+                        oHashParams.set("sTimeZone", oNow.toLocaleTimeString() + " " + sTimeZone + " (" + sOffset + ")");
+                        oHashParams.set("ZCLIENTNAME", sPCName);
+
+                        var sNewUrl = window.location.pathname + window.location.search + sHashPath + "?" + oHashParams.toString();
+                        window.history.replaceState(null, "", sNewUrl);
 
                         oDialog.close();
                     }
