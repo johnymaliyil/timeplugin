@@ -62,7 +62,7 @@ sap.ui.define([
                         var oHashParams = new URLSearchParams(iQIndex >= 0 ? sHash.substring(iQIndex + 1) : "");
 
                         oHashParams.set("sTimeZone", oNow.toLocaleTimeString() + " " + sTimeZone + " (" + sOffset + ")");
-                        oHashParams.set("ZCLIENTNAME", sPCName);
+                        oHashParams.set("clientname", sPCName);
 
                         var sNewUrl = window.location.pathname + window.location.search + sHashPath + "?" + oHashParams.toString();
                         window.history.replaceState(null, "", sNewUrl);
