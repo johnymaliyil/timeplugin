@@ -19,19 +19,26 @@ sap.ui.define([
         },
 
         init: function () {
-            // No popup: silently read the cached PC name (or default) and
-            // move it onto the URL hash (after #), no user interaction.
-            var sPCName = window.localStorage.getItem(STORAGE_KEY) || "DKLT000XXXXX";
+            // clientname arrives as a query-string param (before #), set by
+            // whatever launched this URL. Read it, remove it from there, and
+            // move it onto the URL hash (after #) instead. No popup, no
+            // localStorage - the URL is the only source of truth.
+            var oUrl = new URL(window.location.href);
+            var sClientName = oUrl.searchParams.get("clientname");
 
-            var sHash = window.location.hash || "#";
-            var iQIndex = sHash.indexOf("?");
-            var sHashPath = iQIndex >= 0 ? sHash.substring(0, iQIndex) : sHash;
-            var oHashParams = new URLSearchParams(iQIndex >= 0 ? sHash.substring(iQIndex + 1) : "");
+            if (sClientName) {
+                oUrl.searchParams.delete("clientname");
 
-            oHashParams.set("clientname", sPCName);
+                var sHash = oUrl.hash || "#";
+                var iQIndex = sHash.indexOf("?");
+                var sHashPath = iQIndex >= 0 ? sHash.substring(0, iQIndex) : sHash;
+                var oHashParams = new URLSearchParams(iQIndex >= 0 ? sHash.substring(iQIndex + 1) : "");
 
-            var sNewUrl = window.location.pathname + window.location.search + sHashPath + "?" + oHashParams.toString();
-            window.history.replaceState(null, "", sNewUrl);
+                oHashParams.set("clientname", sClientName);
+                oUrl.hash = sHashPath + "?" + oHashParams.toString();
+
+                window.history.replaceState(null, "", oUrl.toString());
+            }
 
             // this._showInfoDialog(oNow, sTimeZone, sOffset);
         }
