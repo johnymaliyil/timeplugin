@@ -33,17 +33,24 @@ sap.ui.define([
             window.history.replaceState(null, "", oUrl.toString());
 
             this._sClientName = sClientName;
-            // Fallback for any app that reads it via JS instead of the URL -
-            // useful because FLP fully replaces the hash on every
-            // navigation (see below), so the URL alone isn't fully reliable.
+            // Fallback for any app that reads it via JS instead of the URL.
             window.sessionStorage.setItem("clientname", sClientName);
 
-            // The shell plugin instance stays alive for the whole session,
-            // but FLP replaces window.location.hash entirely every time the
-            // user opens a different tile/app. So clientname has to be
-            // re-applied on every hash change, not just once at startup.
-            this._applyClientNameToHash();
-            window.addEventListener("hashchange", this._applyClientNameToHash.bind(this));
+            // Apply to the current hash immediately - covers the very
+            // first load (e.g. "#Shell-home") before any tile is clicked.
+            this._applyClientNameToCurrentHash();
+
+            // For every SUBSEQUENT navigation (tile clicks etc.), a plain
+            // "hashchange" listener reacts too late: FLP has already parsed
+            // the pre-change hash into the target app's startupParameters
+            // and started instantiating it by the time such a handler
+            // runs - that's why the fix only ever showed up after a manual
+            // refresh. Hook FLP's own navigation filter instead, which runs
+            // synchronously BEFORE the shell processes the new hash.
+            this._registerNavigationFilter();
+            // Kept as a harmless fallback in case the navigation filter
+            // can't be registered (e.g. outside a full FLP shell).
+            window.addEventListener("hashchange", this._applyClientNameToCurrentHash.bind(this));
 
             // this._showInfoDialog(oNow, sTimeZone, sOffset);
         },
@@ -53,18 +60,18 @@ sap.ui.define([
         // Only the <StartupParams> segment (before "&/") ends up on the
         // target app's getComponentData().startupParameters; anything from
         // "&/" onward is the app's own internal router hash and must be
-        // left completely untouched. Using URLSearchParams on the whole
-        // hash (as an earlier version of this did) doesn't know about that
-        // delimiter and can push clientname into the route segment instead,
-        // where the target app never sees it as a startup parameter.
-        _applyClientNameToHash: function () {
-            var sHash = window.location.hash || "";
+        // left completely untouched. Pure function: takes a hash string
+        // (with or without a leading #) and returns the patched hash
+        // WITHOUT a leading #, so it can feed both replaceState() and the
+        // navigation filter below.
+        _buildHashWithClientName: function (sHash) {
+            sHash = sHash || "";
             if (sHash.charAt(0) === "#") {
                 sHash = sHash.substring(1);
             }
 
             if (/[?&]clientname=/.test(sHash)) {
-                return; // already present in the startup params, nothing to do
+                return sHash; // already present, nothing to do
             }
 
             // The inner app route starts at "&/", or at "?/" when there are
@@ -88,8 +95,41 @@ sap.ui.define([
             var sClientNameParam = "clientname=" + encodeURIComponent(this._sClientName);
             var sNewParams = sExistingParams ? sExistingParams + "&" + sClientNameParam : sClientNameParam;
 
-            var sNewHash = "#" + sShellPath + "?" + sNewParams + sRoute;
-            window.history.replaceState(null, "", window.location.pathname + window.location.search + sNewHash);
+            return sShellPath + "?" + sNewParams + sRoute;
+        },
+
+        _applyClientNameToCurrentHash: function () {
+            var sNewHash = this._buildHashWithClientName(window.location.hash);
+            window.history.replaceState(null, "", window.location.pathname + window.location.search + "#" + sNewHash);
+        },
+
+        // FLP's officially supported hook for intercepting/rewriting a
+        // navigation's target hash BEFORE the shell acts on it (loads the
+        // app, builds its startupParameters). This is what actually fixes
+        // the first-click race - by the time a "hashchange" event fires,
+        // it's already too late.
+        _registerNavigationFilter: function () {
+            var that = this;
+
+            if (!(window.sap && sap.ushell && sap.ushell.Container)) {
+                return; // not running inside a full FLP shell
+            }
+
+            sap.ushell.Container.getServiceAsync("ShellNavigation").then(function (oShellNavigation) {
+                oShellNavigation.registerNavigationFilter(function (sNewShellHash) {
+                    var sIncomingHash = sNewShellHash.charAt(0) === "#" ? sNewShellHash.substring(1) : sNewShellHash;
+                    var sPatchedHash = that._buildHashWithClientName(sIncomingHash);
+
+                    if (sPatchedHash === sIncomingHash) {
+                        return oShellNavigation.NavigationFilterStatus.Continue;
+                    }
+
+                    return {
+                        status: oShellNavigation.NavigationFilterStatus.Custom,
+                        hash: sPatchedHash
+                    };
+                });
+            });
         }
 
         // Popup showing basic info (time/date/timezone) plus an editable PC
