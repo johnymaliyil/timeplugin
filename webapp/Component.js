@@ -1,5 +1,6 @@
 sap.ui.define([
-    "sap/ui/core/Component"
+    "sap/ui/core/Component",
+    "sap/ui/model/odata/ODataModel"
     // Popup UI disabled - dependencies commented out for easy restore.
     // "sap/m/Dialog",
     // "sap/m/Input",
@@ -7,8 +8,15 @@ sap.ui.define([
     // "sap/m/Text",
     // "sap/m/Button",
     // "sap/m/VBox"
-], function (Component /*, Dialog, Input, Label, Text, Button, VBox */) {
+], function (Component, ODataModel /*, Dialog, Input, Label, Text, Button, VBox */) {
     "use strict";
+
+    // Same backend service the ZEWM_PICKING app itself uses for this -
+    // reusing it here so the shell plugin sets the SAME SAP user parameter
+    // (ZCLIENTNAME) once at bootstrap, server-side, instead of relying on
+    // browser URL/hash/iframe tricks per app. See the ODATA_USER_PARAM_*
+    // comment in init() for what this does and does not guarantee.
+    var ODATA_SERVICE_URL = "/sap/opu/odata/SAP/ZEWM_FIORI_PICKING_APP_SRV";
 
     var STORAGE_KEY = "solarTimePlugin.pcName";
 
@@ -33,6 +41,20 @@ sap.ui.define([
             window.history.replaceState(null, "", oUrl.toString());
 
             this._sClientName = sClientName;
+
+            // ODATA_USER_PARAM: set the SAP user parameter ZCLIENTNAME
+            // server-side, same call the ZEWM_PICKING app's own onPrintDet
+            // already makes. If the backend genuinely persists this per
+            // user (classic SU01/SPA-GPA parameter) rather than just
+            // per-request, any ABAP-side GET PARAMETER ID 'ZCLIENTNAME' in
+            // this user's session - from ANY app on the same backend
+            // system - picks it up with zero frontend URL/hash/iframe
+            // logic needed. NOT yet verified against this landscape's
+            // actual backend implementation (stateful vs. stateless
+            // service) - test whether a DIFFERENT app/session can read it
+            // back without going through the picking screen first.
+            this._setUserParameter(sClientName);
+
             // Belt-and-braces for any app running in the SAME window/tab as
             // the shell. NOTE: this is NOT visible to apps loaded via
             // ui5apparuntime.html's isolated iframe - iframe sessionStorage
@@ -78,6 +100,30 @@ sap.ui.define([
             });
 
             // this._showInfoDialog(oNow, sTimeZone, sOffset);
+        },
+
+        _setUserParameter: function (sClientName) {
+            var oModel = new ODataModel(ODATA_SERVICE_URL, {
+                json: true,
+                loadMetadataAsync: true
+            });
+
+            var oEntry = {
+                Parid: "ZCLIENTNAME",
+                Parva: sClientName || "TERMINAL"
+            };
+
+            oModel.update("/UsParamSet('ZCLIENTNAME')", oEntry, {
+                method: "PUT",
+                success: function () {
+                    // eslint-disable-next-line no-console
+                    console.log("ZCLIENTNAME user parameter set to", oEntry.Parva);
+                },
+                error: function (oError) {
+                    // eslint-disable-next-line no-console
+                    console.log("Failed to set ZCLIENTNAME user parameter:", oError);
+                }
+            });
         },
 
         // FLP shell hash grammar is NOT a plain query string - it is
