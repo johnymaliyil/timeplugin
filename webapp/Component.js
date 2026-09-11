@@ -48,20 +48,47 @@ sap.ui.define([
             // this._showInfoDialog(oNow, sTimeZone, sOffset);
         },
 
+        // FLP shell hash grammar is NOT a plain query string - it is
+        // "<SemanticObject>-<Action>?<StartupParams>&/<InnerAppRoute>".
+        // Only the <StartupParams> segment (before "&/") ends up on the
+        // target app's getComponentData().startupParameters; anything from
+        // "&/" onward is the app's own internal router hash and must be
+        // left completely untouched. Using URLSearchParams on the whole
+        // hash (as an earlier version of this did) doesn't know about that
+        // delimiter and can push clientname into the route segment instead,
+        // where the target app never sees it as a startup parameter.
         _applyClientNameToHash: function () {
-            var sHash = window.location.hash || "#";
-
-            if (sHash.indexOf("clientname=") >= 0) {
-                return; // already present on this hash, nothing to do
+            var sHash = window.location.hash || "";
+            if (sHash.charAt(0) === "#") {
+                sHash = sHash.substring(1);
             }
 
-            var iQIndex = sHash.indexOf("?");
-            var sHashPath = iQIndex >= 0 ? sHash.substring(0, iQIndex) : sHash;
-            var oHashParams = new URLSearchParams(iQIndex >= 0 ? sHash.substring(iQIndex + 1) : "");
+            if (/[?&]clientname=/.test(sHash)) {
+                return; // already present in the startup params, nothing to do
+            }
 
-            oHashParams.set("clientname", this._sClientName);
+            // The inner app route starts at "&/", or at "?/" when there are
+            // no other startup params yet.
+            var oRouteMatch = sHash.match(/[?&]\//);
+            var iRouteMarkerIndex = oRouteMatch ? oRouteMatch.index : -1;
 
-            var sNewHash = sHashPath + "?" + oHashParams.toString();
+            var sBeforeRoute = iRouteMarkerIndex >= 0 ? sHash.substring(0, iRouteMarkerIndex) : sHash;
+            var sRoute = iRouteMarkerIndex >= 0 ? sHash.substring(iRouteMarkerIndex) : "";
+            // Once we insert our own params section, the boundary to the
+            // route must be "&/" - if it currently starts with "?/" (no
+            // other params existed before it), swap that leading "?" for "&".
+            if (sRoute.charAt(0) === "?") {
+                sRoute = "&" + sRoute.substring(1);
+            }
+
+            var iQIndex = sBeforeRoute.indexOf("?");
+            var sShellPath = iQIndex >= 0 ? sBeforeRoute.substring(0, iQIndex) : sBeforeRoute;
+            var sExistingParams = iQIndex >= 0 ? sBeforeRoute.substring(iQIndex + 1) : "";
+
+            var sClientNameParam = "clientname=" + encodeURIComponent(this._sClientName);
+            var sNewParams = sExistingParams ? sExistingParams + "&" + sClientNameParam : sClientNameParam;
+
+            var sNewHash = "#" + sShellPath + "?" + sNewParams + sRoute;
             window.history.replaceState(null, "", window.location.pathname + window.location.search + sNewHash);
         }
 
