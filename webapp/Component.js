@@ -53,7 +53,15 @@ sap.ui.define([
             // actual backend implementation (stateful vs. stateless
             // service) - test whether a DIFFERENT app/session can read it
             // back without going through the picking screen first.
-            this._setUserParameter(sClientName);
+            // Guarded with try/catch: this is a bonus/experimental feature
+            // and must never be able to break the hash/postMessage logic
+            // below, which is already confirmed working.
+            try {
+                this._setUserParameter(sClientName);
+            } catch (e) {
+                // eslint-disable-next-line no-console
+                console.log("_setUserParameter failed:", e);
+            }
 
             // Belt-and-braces for any app running in the SAME window/tab as
             // the shell. NOTE: this is NOT visible to apps loaded via
