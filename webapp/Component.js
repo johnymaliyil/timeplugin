@@ -70,8 +70,7 @@ sap.ui.define([
         // "&/" onward is the app's own internal router hash and must be
         // left completely untouched. Pure function: takes a hash string
         // (with or without a leading #) and returns the patched hash
-        // WITHOUT a leading #, so it can feed both replaceState() and the
-        // navigation filter below.
+        // WITHOUT a leading #.
         _buildHashWithClientName: function (sHash) {
             sHash = sHash || "";
             if (sHash.charAt(0) === "#") {
