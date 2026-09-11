@@ -40,16 +40,24 @@ sap.ui.define([
             // first load (e.g. "#Shell-home") before any tile is clicked.
             this._applyClientNameToCurrentHash();
 
-            // For every SUBSEQUENT navigation (tile clicks etc.), a plain
-            // "hashchange" listener reacts too late: FLP has already parsed
-            // the pre-change hash into the target app's startupParameters
-            // and started instantiating it by the time such a handler
-            // runs - that's why the fix only ever showed up after a manual
-            // refresh. Hook FLP's own navigation filter instead, which runs
-            // synchronously BEFORE the shell processes the new hash.
-            this._registerNavigationFilter();
-            // Kept as a harmless fallback in case the navigation filter
-            // can't be registered (e.g. outside a full FLP shell).
+            // FLP fully replaces window.location.hash on every tile/app
+            // navigation, so clientname has to be re-applied on every hash
+            // change, not just once at startup.
+            //
+            // NOTE: this reacts one step behind - FLP has usually already
+            // read the PRE-change hash into the target app's
+            // startupParameters by the time this handler runs, so a
+            // freshly-clicked tile may not see clientname in
+            // getComponentData().startupParameters on its very first open
+            // (a page refresh on that same app picks it up fine, since the
+            // hash is patched by then). An earlier attempt to close that
+            // gap via sap.ushell's ShellNavigation.registerNavigationFilter
+            // broke tile navigation entirely and was reverted - that FLP
+            // API needs to be verified against the actual shell version in
+            // use before trying again. In the meantime, the target app
+            // reading window.sessionStorage.getItem("clientname") instead
+            // of startupParameters is the reliable option (see comment
+            // below and in the earlier chat reply).
             window.addEventListener("hashchange", this._applyClientNameToCurrentHash.bind(this));
 
             // this._showInfoDialog(oNow, sTimeZone, sOffset);
@@ -101,35 +109,6 @@ sap.ui.define([
         _applyClientNameToCurrentHash: function () {
             var sNewHash = this._buildHashWithClientName(window.location.hash);
             window.history.replaceState(null, "", window.location.pathname + window.location.search + "#" + sNewHash);
-        },
-
-        // FLP's officially supported hook for intercepting/rewriting a
-        // navigation's target hash BEFORE the shell acts on it (loads the
-        // app, builds its startupParameters). This is what actually fixes
-        // the first-click race - by the time a "hashchange" event fires,
-        // it's already too late.
-        _registerNavigationFilter: function () {
-            var that = this;
-
-            if (!(window.sap && sap.ushell && sap.ushell.Container)) {
-                return; // not running inside a full FLP shell
-            }
-
-            sap.ushell.Container.getServiceAsync("ShellNavigation").then(function (oShellNavigation) {
-                oShellNavigation.registerNavigationFilter(function (sNewShellHash) {
-                    var sIncomingHash = sNewShellHash.charAt(0) === "#" ? sNewShellHash.substring(1) : sNewShellHash;
-                    var sPatchedHash = that._buildHashWithClientName(sIncomingHash);
-
-                    if (sPatchedHash === sIncomingHash) {
-                        return oShellNavigation.NavigationFilterStatus.Continue;
-                    }
-
-                    return {
-                        status: oShellNavigation.NavigationFilterStatus.Custom,
-                        hash: sPatchedHash
-                    };
-                });
-            });
         }
 
         // Popup showing basic info (time/date/timezone) plus an editable PC
