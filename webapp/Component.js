@@ -33,7 +33,11 @@ sap.ui.define([
             window.history.replaceState(null, "", oUrl.toString());
 
             this._sClientName = sClientName;
-            // Fallback for any app that reads it via JS instead of the URL.
+            // Belt-and-braces for any app running in the SAME window/tab as
+            // the shell. NOTE: this is NOT visible to apps loaded via
+            // ui5apparuntime.html's isolated iframe - iframe sessionStorage
+            // is a separate session per the iframe's own origin/context, so
+            // don't rely on this for isolated apps (see postMessage below).
             window.sessionStorage.setItem("clientname", sClientName);
 
             // Apply to the current hash immediately - covers the very
@@ -50,15 +54,28 @@ sap.ui.define([
             // freshly-clicked tile may not see clientname in
             // getComponentData().startupParameters on its very first open
             // (a page refresh on that same app picks it up fine, since the
-            // hash is patched by then). An earlier attempt to close that
-            // gap via sap.ushell's ShellNavigation.registerNavigationFilter
-            // broke tile navigation entirely and was reverted - that FLP
-            // API needs to be verified against the actual shell version in
-            // use before trying again. In the meantime, the target app
-            // reading window.sessionStorage.getItem("clientname") instead
-            // of startupParameters is the reliable option (see comment
-            // below and in the earlier chat reply).
+            // hash is patched by then). An earlier attempt to close that gap
+            // via sap.ushell's ShellNavigation.registerNavigationFilter
+            // broke tile navigation entirely and was reverted - that FLP API
+            // is undocumented/deprecated and not safe to guess at again.
             window.addEventListener("hashchange", this._applyClientNameToCurrentHash.bind(this));
+
+            // Reliable path for apps in an ISOLATED iframe
+            // (ui5apparuntime.html), which can't see this window's
+            // sessionStorage or URL at all: answer postMessage requests for
+            // clientname directly. Standard browser API, no FLP internals
+            // involved, and no timing race - the child app asks whenever
+            // IT is ready, instead of us racing to inject data before FLP
+            // reads the hash.
+            var that = this;
+            window.addEventListener("message", function (oEvent) {
+                if (oEvent.data && oEvent.data.type === "solarTimePlugin:getClientName" && oEvent.source) {
+                    oEvent.source.postMessage({
+                        type: "solarTimePlugin:clientName",
+                        clientname: that._sClientName
+                    }, "*");
+                }
+            });
 
             // this._showInfoDialog(oNow, sTimeZone, sOffset);
         },
