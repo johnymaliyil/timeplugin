@@ -19,18 +19,32 @@ sap.ui.define([
         },
 
         init: function () {
-            // clientname arrives as a query-string param (before #), set by
-            // whatever launched this URL. Read it once, strip it from the
-            // query string, and remember it on the plugin instance.
+            // clientname normally arrives as a query-string param (before
+            // #), set by whatever launched this URL. Read it once and strip
+            // it from the query string.
             var oUrl = new URL(window.location.href);
             var sClientName = oUrl.searchParams.get("clientname");
+
+            if (sClientName) {
+                oUrl.searchParams.delete("clientname");
+                window.history.replaceState(null, "", oUrl.toString());
+            } else {
+                // Fallback: a PREVIOUS session already moved clientname into
+                // the hash, and the shell's top-level page got reloaded
+                // since then (e.g. during testing, or a user hitting
+                // refresh). The query string no longer has it at that
+                // point, but the hash still does - read it from there so
+                // this plugin instance (and its postMessage listener) still
+                // initializes correctly instead of silently doing nothing.
+                var oHashMatch = (window.location.hash || "").match(/[?&]clientname=([^&]*)/);
+                if (oHashMatch) {
+                    sClientName = decodeURIComponent(oHashMatch[1]);
+                }
+            }
 
             if (!sClientName) {
                 return;
             }
-
-            oUrl.searchParams.delete("clientname");
-            window.history.replaceState(null, "", oUrl.toString());
 
             this._sClientName = sClientName;
 
