@@ -3,6 +3,13 @@
   "authenticationMethod": "route",
   "routes": [
     {
+      "source": "^/sap/opu/odata/SAP/ZEWM_FIORI_PICKING_APP_SRV/(.*)$",
+      "target": "/sap/opu/odata/SAP/ZEWM_FIORI_PICKING_APP_SRV/$1",
+      "destination": "dw4-bas",
+      "authenticationType": "xsuaa",
+      "csrfProtection": true
+    },
+    {
       "source": "^(.*)$",
       "target": "$1",
       "service": "html5-apps-repo-rt",
