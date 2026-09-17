@@ -1,6 +1,5 @@
 sap.ui.define([
-    "sap/ui/core/Component",
-    "sap/ui/model/odata/ODataModel"
+    "sap/ui/core/Component"
     // Popup UI disabled - dependencies commented out for easy restore.
     // "sap/m/Dialog",
     // "sap/m/Input",
@@ -8,7 +7,7 @@ sap.ui.define([
     // "sap/m/Text",
     // "sap/m/Button",
     // "sap/m/VBox"
-], function (Component, ODataModel /*, Dialog, Input, Label, Text, Button, VBox */) {
+], function (Component /*, Dialog, Input, Label, Text, Button, VBox */) {
     "use strict";
 
     // Routed through xs-app.json to the "dw4-bas" on-premise destination -
@@ -61,16 +60,18 @@ sap.ui.define([
             // user (classic SU01/SPA-GPA parameter), any ABAP-side
             // GET PARAMETER ID 'ZCLIENTNAME' in this user's session - from
             // ANY app on the same backend system - picks it up with zero
-            // frontend URL/hash/iframe logic needed. Guarded with
-            // try/catch: this is additive/experimental and must never be
-            // able to break the hash/postMessage logic below, which is
-            // already confirmed working independently of this.
-            try {
-                this._setUserParameter(sClientName);
-            } catch (e) {
-                // eslint-disable-next-line no-console
-                console.log("_setUserParameter failed:", e);
-            }
+            // frontend URL/hash/iframe logic needed. This is additive/
+            // experimental and must never be able to break the hash/
+            // postMessage logic below, which is already confirmed working
+            // independently of this - so ODataModel is loaded lazily via
+            // sap.ui.require() from inside _setUserParameter() instead of
+            // as a sap.ui.define() dependency above. A hard sap.ui.define
+            // dependency is resolved BEFORE init() ever runs, so if that
+            // module ever failed to load (network blip, UI5 version/CDN
+            // hiccup) the whole Component.js factory would never run and
+            // NOTHING below - not just this OData call - would work either.
+            // Loading it lazily means a failure here is fully contained.
+            this._setUserParameter(sClientName);
 
             // Belt-and-braces for any app running in the SAME window/tab as
             // the shell. NOTE: this is NOT visible to apps loaded via
@@ -120,26 +121,40 @@ sap.ui.define([
         },
 
         _setUserParameter: function (sClientName) {
-            var oModel = new ODataModel(ODATA_SERVICE_URL, {
-                json: true,
-                loadMetadataAsync: true
-            });
+            // Lazy-loaded on purpose - see the comment at the call site in
+            // init(). sap.ui.require() resolves asynchronously and its own
+            // error callback (below) keeps a failed module load from ever
+            // throwing back into init()'s call stack.
+            sap.ui.require(["sap/ui/model/odata/ODataModel"], function (ODataModel) {
+                try {
+                    var oModel = new ODataModel(ODATA_SERVICE_URL, {
+                        json: true,
+                        loadMetadataAsync: true
+                    });
 
-            var oEntry = {
-                Parid: "ZCLIENTNAME",
-                Parva: sClientName || "TERMINAL"
-            };
+                    var oEntry = {
+                        Parid: "ZCLIENTNAME",
+                        Parva: sClientName || "TERMINAL"
+                    };
 
-            oModel.update("/UsParamSet('ZCLIENTNAME')", oEntry, {
-                method: "PUT",
-                success: function () {
+                    oModel.update("/UsParamSet('ZCLIENTNAME')", oEntry, {
+                        method: "PUT",
+                        success: function () {
+                            // eslint-disable-next-line no-console
+                            console.log("ZCLIENTNAME user parameter set to", oEntry.Parva);
+                        },
+                        error: function (oError) {
+                            // eslint-disable-next-line no-console
+                            console.log("Failed to set ZCLIENTNAME user parameter:", oError);
+                        }
+                    });
+                } catch (e) {
                     // eslint-disable-next-line no-console
-                    console.log("ZCLIENTNAME user parameter set to", oEntry.Parva);
-                },
-                error: function (oError) {
-                    // eslint-disable-next-line no-console
-                    console.log("Failed to set ZCLIENTNAME user parameter:", oError);
+                    console.log("_setUserParameter failed:", e);
                 }
+            }, function (oError) {
+                // eslint-disable-next-line no-console
+                console.log("Failed to load ODataModel module:", oError);
             });
         },
 
