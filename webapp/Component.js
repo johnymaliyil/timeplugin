@@ -16,9 +16,9 @@ sap.ui.define([
     // this service at all; that route was just added, this is testing it.
     var ODATA_SERVICE_URL = "/sap/opu/odata/SAP/ZEWM_FIORI_PICKING_APP_SRV";
 
-    var STORAGE_KEY = "solarTimePlugin.pcName";
+    var STORAGE_KEY = "solarTerminalPlugin.pcName";
 
-    return Component.extend("com.solar.timeplugin.Component", {
+    return Component.extend("com.solar.terminalplugin.Component", {
 
         metadata: {
             manifest: "json"
@@ -109,9 +109,9 @@ sap.ui.define([
             // reads the hash.
             var that = this;
             window.addEventListener("message", function (oEvent) {
-                if (oEvent.data && oEvent.data.type === "solarTimePlugin:getClientName" && oEvent.source) {
+                if (oEvent.data && oEvent.data.type === "solarTerminalPlugin:getClientName" && oEvent.source) {
                     oEvent.source.postMessage({
-                        type: "solarTimePlugin:clientName",
+                        type: "solarTerminalPlugin:clientName",
                         clientname: that._sClientName
                     }, "*");
                 }

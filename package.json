@@ -1,7 +1,7 @@
 {
-  "name": "solar-time-plugin",
+  "name": "solar-terminal-plugin",
   "version": "1.0.0",
-  "description": "Solar shell plugin showing current time and time zone on login",
+  "description": "Solar shell plugin updating user parameter",
   "private": true,
   "scripts": {
     "start": "ui5 serve --open test/flpSandbox.html",
