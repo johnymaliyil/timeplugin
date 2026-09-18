@@ -122,7 +122,6 @@ sap.ui.define([
             // involved, and no timing race - the child app asks whenever
             // IT is ready, instead of us racing to inject data before FLP
             // reads the hash.
-            var that = this;
             window.addEventListener("message", function (oEvent) {
                 if (oEvent.data && oEvent.data.type === "solarTerminalPlugin:getClientName" && oEvent.source) {
                     oEvent.source.postMessage({
