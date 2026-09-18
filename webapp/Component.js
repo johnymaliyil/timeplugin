@@ -10,11 +10,17 @@ sap.ui.define([
 ], function (Component /*, Dialog, Input, Label, Text, Button, VBox */) {
     "use strict";
 
-    // Routed through xs-app.json to the "dw4-bas" on-premise destination -
-    // the same backend the ZEWM_PICKING app itself deploys to. Previous
-    // attempt at this failed with 404/403 because the shell had no route to
-    // this service at all; that route was just added, this is testing it.
-    var ODATA_SERVICE_URL = "/sap/opu/odata/SAP/ZEWM_FIORI_PICKING_APP_SRV";
+    // Routed through THIS plugin's own xs-app.json to the "dw4-bas"
+    // on-premise destination. Deliberately NOT a root-relative path
+    // ("/sap/opu/odata/...") - that resolves against the current page's
+    // origin AT THE ROOT, which lands outside this plugin's own path
+    // prefix (the shared Work Zone approuter serves the shell itself from
+    // that root, with no route to this backend). This plugin's xs-app.json
+    // route only applies to requests made WITHIN its own deployed path
+    // prefix, so the full URL has to be built from wherever this
+    // component's own files actually were loaded from - see
+    // _resolveODataServiceUrl().
+    var ODATA_SERVICE_PATH = "/sap/opu/odata/SAP/ZEWM_FIORI_PICKING_APP_SRV";
 
     var STORAGE_KEY = "solarTerminalPlugin.pcName";
 
@@ -125,9 +131,13 @@ sap.ui.define([
             // init(). sap.ui.require() resolves asynchronously and its own
             // error callback (below) keeps a failed module load from ever
             // throwing back into init()'s call stack.
+            var that = this;
             sap.ui.require(["sap/ui/model/odata/ODataModel"], function (ODataModel) {
                 try {
-                    var oModel = new ODataModel(ODATA_SERVICE_URL, {
+                    var sOdataServiceUrl = that._resolveODataServiceUrl();
+                    // eslint-disable-next-line no-console
+                    console.log("Resolved OData service URL:", sOdataServiceUrl);
+                    var oModel = new ODataModel(sOdataServiceUrl, {
                         json: true,
                         loadMetadataAsync: true
                     });
@@ -156,6 +166,23 @@ sap.ui.define([
                 // eslint-disable-next-line no-console
                 console.log("Failed to load ODataModel module:", oError);
             });
+        },
+
+        // Resolves the absolute OData service URL against THIS component's
+        // own deployed path prefix, instead of a root-relative path (which
+        // resolves against the shell page's own root - outside this
+        // plugin's xs-app.json scope, 403/404s) or a hardcoded absolute
+        // host (breaks across dev/QA/prod landscapes). sap.ui.require.toUrl
+        // returns the URL this component's own resources were actually
+        // loaded from (e.g. ".../comsolarterminalpluginservice.
+        // comsolarterminalplugin/~version~/"), which - since THIS plugin's
+        // own xs-app.json has the route to "dw4-bas" - is the only prefix
+        // under which that route is actually matched by the shared
+        // approuter.
+        _resolveODataServiceUrl: function () {
+            var sComponentBaseUrl = sap.ui.require.toUrl("com/solar/terminalplugin");
+            var oResolvedUrl = new URL(sComponentBaseUrl, window.location.href);
+            return oResolvedUrl.pathname.replace(/\/$/, "") + ODATA_SERVICE_PATH;
         },
 
         // FLP shell hash grammar is NOT a plain query string - it is
