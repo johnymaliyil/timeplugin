@@ -69,15 +69,20 @@ sap.ui.define([
             // frontend URL/hash/iframe logic needed. This is additive/
             // experimental and must never be able to break the hash/
             // postMessage logic below, which is already confirmed working
-            // independently of this - so ODataModel is loaded lazily via
-            // sap.ui.require() from inside _setUserParameter() instead of
-            // as a sap.ui.define() dependency above. A hard sap.ui.define
-            // dependency is resolved BEFORE init() ever runs, so if that
-            // module ever failed to load (network blip, UI5 version/CDN
-            // hiccup) the whole Component.js factory would never run and
-            // NOTHING below - not just this OData call - would work either.
-            // Loading it lazily means a failure here is fully contained.
-            this._setUserParameter(sClientName);
+            // independently of this. ODataModel is loaded lazily via
+            // sap.ui.require() from inside _setUserParameter() so a failed
+            // module load can't block init() - but the CALL to
+            // _setUserParameter() itself still runs synchronously and could
+            // throw before that lazy-load even starts (e.g. if sap.ui.require
+            // itself is unavailable), so it's wrapped in try/catch here too:
+            // nothing in this block may ever be allowed to stop the rest of
+            // init() (hash patching, postMessage) from running.
+            try {
+                this._setUserParameter(sClientName);
+            } catch (e) {
+                // eslint-disable-next-line no-console
+                console.log("_setUserParameter failed:", e);
+            }
 
             // Belt-and-braces for any app running in the SAME window/tab as
             // the shell. NOTE: this is NOT visible to apps loaded via
