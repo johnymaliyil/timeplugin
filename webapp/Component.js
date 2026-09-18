@@ -67,22 +67,26 @@ sap.ui.define([
             // GET PARAMETER ID 'ZCLIENTNAME' in this user's session - from
             // ANY app on the same backend system - picks it up with zero
             // frontend URL/hash/iframe logic needed. This is additive/
-            // experimental and must never be able to break the hash/
-            // postMessage logic below, which is already confirmed working
-            // independently of this. ODataModel is loaded lazily via
-            // sap.ui.require() from inside _setUserParameter() so a failed
-            // module load can't block init() - but the CALL to
-            // _setUserParameter() itself still runs synchronously and could
-            // throw before that lazy-load even starts (e.g. if sap.ui.require
-            // itself is unavailable), so it's wrapped in try/catch here too:
-            // nothing in this block may ever be allowed to stop the rest of
-            // init() (hash patching, postMessage) from running.
-            try {
-                this._setUserParameter(sClientName);
-            } catch (e) {
-                // eslint-disable-next-line no-console
-                console.log("_setUserParameter failed:", e);
-            }
+            // experimental and must NEVER be able to break the hash/
+            // postMessage logic below, which is the actual confirmed-working
+            // requirement. try/catch alone only protects against a
+            // SYNCHRONOUS throw - it doesn't fully isolate this from the
+            // rest of init() by inspection, and this experiment has already
+            // regressed the working hash behavior more than once. Deferred
+            // with setTimeout(..., 0) instead: that schedules the call for
+            // AFTER init() has already returned completely, on a separate
+            // turn of the event loop - so nothing that happens inside it
+            // (sync or async, throw or not) can possibly run before, or
+            // interfere with, anything below this point.
+            var that = this;
+            window.setTimeout(function () {
+                try {
+                    that._setUserParameter(sClientName);
+                } catch (e) {
+                    // eslint-disable-next-line no-console
+                    console.log("_setUserParameter failed:", e);
+                }
+            }, 0);
 
             // Belt-and-braces for any app running in the SAME window/tab as
             // the shell. NOTE: this is NOT visible to apps loaded via
